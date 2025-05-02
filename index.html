@@ -1,0 +1,147 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>English Word Blocks</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+</head>
+<body>
+<script>
+let wordsDB; // 全局變量，存儲英文單字數據
+let gameState = 'playing'; // 遊戲狀態
+let level = 1; // 當前關卡
+let words = []; // 活躍的單字對象數組
+let lastSpawnFrame = 0; // 上次生成單字的幀數
+
+// 在 preload 中加載 wordsDB
+function preload() {
+  wordsDB = loadJSON('wordsDB.json', () => {
+    console.log('wordsDB loaded successfully:', wordsDB);
+  }, () => {
+    console.error('Failed to load wordsDB.json. Check file path or network.');
+  });
+}
+
+function setup() {
+  createCanvas(400, 600); // 畫布大小
+  textAlign(CENTER, CENTER);
+  textSize(20);
+}
+
+function spawnWord() {
+  // 檢查 wordsDB 是否已加載
+  if (!wordsDB || !wordsDB.words) {
+    console.error('wordsDB not initialized or data invalid');
+    return;
+  }
+
+  // 根據關卡選擇單字（簡單過濾：長度與關卡相關）
+  let availableWords = wordsDB.words.filter(w => w.length <= 3 + level);
+  if (availableWords.length === 0) {
+    console.error('No suitable words for level', level);
+    return;
+  }
+
+  // 隨機選擇一個單字
+  let wordData = random(availableWords);
+  let word = {
+    text: wordData.text, // 英文單字
+    x: random(50, width - 50), // 隨機 x 位置
+    y: 0, // 從頂部開始
+    speed: 2 + level * 0.5 // 根據關卡調整速度
+  };
+  words.push(word);
+  console.log('Spawned word:', word.text);
+}
+
+function drawGame() {
+  console.log(`drawGame called: frameCount=${frameCount}, words=${words.length}`);
+  
+  // 當沒有單字時，每 120 幀（約 2 秒）生成一個新單字
+  if (words.length === 0 && frameCount - lastSpawnFrame > 120) {
+    spawnWord();
+    lastSpawnFrame = frameCount;
+  }
+
+  // 更新和繪製所有單字
+  for (let i = words.length - 1; i >= 0; i--) {
+    let word = words[i];
+    word.y += word.speed; // 向下移動
+
+    // 繪製單字
+    fill(0);
+    text(word.text, word.x, word.y);
+
+    // 如果單字超出畫布底部，移除
+    if (word.y > height) {
+      words.splice(i, 1);
+      console.log('Word removed:', word.text);
+    }
+  }
+}
+
+function draw() {
+  console.log(`Draw called: gameState = ${gameState}, Level = ${level}, Words = ${words.length}`);
+  background(220); // 清空畫布
+
+  if (gameState === 'playing') {
+    drawGame();
+  }
+}
+
+// 處理鍵盤輸入（模擬輸入單字的第一個字母）
+function keyPressed() {
+  if (gameState === 'playing' && words.length > 0) {
+    let word = words[0];
+    // 檢查玩家輸入是否匹配單字的第一個字母（忽略大小寫）
+    if (key.toLowerCase() === word.text[0].toLowerCase()) {
+      console.log(`Correct input: ${key}, removed word: ${word.text}`);
+      words.splice(0, 1);
+      // 可擴展：增加分數或提升關卡
+    } else {
+      console.log(`Incorrect input: ${key}, expected: ${word.text[0]}`);
+    }
+  }
+}
+</script>
+</body>
+</html>
