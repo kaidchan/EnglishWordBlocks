@@ -1,0 +1,12 @@
+{
+  "words": [
+    { "text": "cat", "length": 3 },
+    { "text": "dog", "length": 3 },
+    { "text": "bird", "length": 4 },
+    { "text": "fish", "length": 4 },
+    { "text": "house", "length": 5 },
+    { "text": "tree", "length": 4 },
+    { "text": "book", "length": 4 },
+    { "text": "apple", "length": 5 }
+  ]
+}
